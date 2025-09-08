@@ -1,0 +1,707 @@
+import React, { useState, useEffect } from 'react';
+import { Search, TrendingUp, Target, DollarSign, BarChart3, Users, MapPin, Zap } from 'lucide-react';
+
+const KeywordResearchGPT = () => {
+  const [step, setStep] = useState(1);
+  const [mode, setMode] = useState('ppc'); // 'ppc' or 'seo'
+  const [currency, setCurrency] = useState('USD');
+  const [businessData, setBusinessData] = useState({
+    businessType: '',
+    targetAudience: '',
+    seedKeywords: '',
+    geoFocus: '',
+    monthlyBudget: ''
+  });
+  const [keywordData, setKeywordData] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const currencies = {
+    USD: { symbol: '$', name: 'US Dollar' },
+    GBP: { symbol: '£', name: 'British Pound' },
+    EUR: { symbol: '€', name: 'Euro' },
+    INR: { symbol: '₹', name: 'Indian Rupee' },
+    CAD: { symbol: 'C$', name: 'Canadian Dollar' },
+    AUD: { symbol: 'A$', name: 'Australian Dollar' }
+  };
+
+  // Currency conversion rates (simplified - in real app, use live rates)
+  const getCurrencyMultiplier = (currency) => {
+    const rates = {
+      USD: 1,
+      GBP: 0.79,
+      EUR: 0.85,
+      INR: 83.12,
+      CAD: 1.35,
+      AUD: 1.52
+    };
+    return rates[currency] || 1;
+  };
+
+  const formatCurrency = (amount) => {
+    const multiplier = getCurrencyMultiplier(currency);
+    const convertedAmount = amount * multiplier;
+    const symbol = currencies[currency].symbol;
+    
+    if (currency === 'INR') {
+      return `${symbol}${Math.round(convertedAmount).toLocaleString('en-IN')}`;
+    }
+    return `${symbol}${Math.round(convertedAmount).toLocaleString()}`;
+  };
+
+  // Sample keyword data generator for both PPC and SEO modes
+  const generateKeywordData = (businessType, seedKeywords, mode) => {
+    const keywords = seedKeywords.split(',').map(k => k.trim());
+    
+    if (mode === 'seo') {
+      // SEO-focused clusters
+      const seoSampleClusters = [
+        {
+          cluster: "High Authority Content",
+          intent: "TOFU",
+          keywords: keywords.map(k => `${k} guide`).concat([
+            `how to ${businessType}`,
+            `${businessType} best practices`,
+            `${businessType} tutorial`
+          ]),
+          avgVolume: 15200,
+          difficulty: 45,
+          competition: 'Medium',
+          revenueScore: 78,
+          projectedRevenue: 25000,
+          seoMetrics: {
+            avgPosition: 12,
+            clickRate: 8.5,
+            backlinksNeeded: 45,
+            contentGap: 'High'
+          }
+        },
+        {
+          cluster: "Commercial Intent",
+          intent: "BOFU",
+          keywords: keywords.map(k => `best ${k}`).concat([
+            `${businessType} comparison`,
+            `top ${businessType} tools`,
+            `${businessType} reviews`
+          ]),
+          avgVolume: 9800,
+          difficulty: 68,
+          competition: 'High',
+          revenueScore: 92,
+          projectedRevenue: 42000,
+          seoMetrics: {
+            avgPosition: 18,
+            clickRate: 12.3,
+            backlinksNeeded: 85,
+            contentGap: 'Medium'
+          }
+        },
+        {
+          cluster: "Long-tail Informational",
+          intent: "TOFU",
+          keywords: keywords.map(k => `what is ${k}`).concat([
+            `${businessType} definition`,
+            `${businessType} meaning`,
+            `${businessType} explanation`
+          ]),
+          avgVolume: 24500,
+          difficulty: 32,
+          competition: 'Low',
+          revenueScore: 65,
+          projectedRevenue: 18000,
+          seoMetrics: {
+            avgPosition: 8,
+            clickRate: 15.7,
+            backlinksNeeded: 25,
+            contentGap: 'Low'
+          }
+        },
+        {
+          cluster: "Local SEO Opportunities",
+          intent: "MOFU",
+          keywords: keywords.map(k => `${k} services`).concat([
+            `${businessType} near me`,
+            `local ${businessType}`,
+            `${businessType} in ${businessData.geoFocus}`
+          ]),
+          avgVolume: 7200,
+          difficulty: 41,
+          competition: 'Medium',
+          revenueScore: 85,
+          projectedRevenue: 32000,
+          seoMetrics: {
+            avgPosition: 15,
+            clickRate: 9.8,
+            backlinksNeeded: 35,
+            contentGap: 'High'
+          }
+        }
+      ];
+
+      return {
+        totalKeywords: seoSampleClusters.reduce((acc, cluster) => acc + cluster.keywords.length, 0),
+        totalVolume: seoSampleClusters.reduce((acc, cluster) => acc + cluster.avgVolume, 0),
+        avgDifficulty: seoSampleClusters.reduce((acc, cluster) => acc + cluster.difficulty, 0) / seoSampleClusters.length,
+        clusters: seoSampleClusters.sort((a, b) => b.revenueScore - a.revenueScore),
+        totalProjectedRevenue: seoSampleClusters.reduce((acc, cluster) => acc + cluster.projectedRevenue, 0)
+      };
+    } else {
+      // PPC-focused clusters
+      const ppcSampleClusters = [
+        {
+          cluster: "High Intent Commercial",
+          intent: "BOFU",
+          keywords: keywords.map(k => `${k} pricing`).concat([
+            `best ${businessType}`,
+            `${businessType} reviews`,
+            `buy ${businessType}`
+          ]),
+          avgVolume: 12500,
+          avgCPC: 3.45,
+          competition: 'High',
+          revenueScore: 95,
+          projectedRevenue: 45000
+        },
+        {
+          cluster: "Problem Awareness",
+          intent: "TOFU",
+          keywords: keywords.map(k => `how to ${k}`).concat([
+            `${businessType} guide`,
+            `${businessType} tips`,
+            `what is ${businessType}`
+          ]),
+          avgVolume: 28400,
+          avgCPC: 1.85,
+          competition: 'Medium',
+          revenueScore: 72,
+          projectedRevenue: 28000
+        },
+        {
+          cluster: "Solution Research",
+          intent: "MOFU",
+          keywords: keywords.map(k => `${k} vs`).concat([
+            `${businessType} comparison`,
+            `${businessType} alternatives`,
+            `${businessType} features`
+          ]),
+          avgVolume: 8900,
+          avgCPC: 2.65,
+          competition: 'Medium',
+          revenueScore: 83,
+          projectedRevenue: 32000
+        },
+        {
+          cluster: "Local Intent",
+          intent: "BOFU",
+          keywords: keywords.map(k => `${k} near me`).concat([
+            `${businessType} in ${businessData.geoFocus}`,
+            `local ${businessType}`,
+            `${businessType} services`
+          ]),
+          avgVolume: 6700,
+          avgCPC: 4.20,
+          competition: 'High',
+          revenueScore: 88,
+          projectedRevenue: 38000
+        }
+      ];
+
+      return {
+        totalKeywords: ppcSampleClusters.reduce((acc, cluster) => acc + cluster.keywords.length, 0),
+        totalVolume: ppcSampleClusters.reduce((acc, cluster) => acc + cluster.avgVolume, 0),
+        avgCPC: ppcSampleClusters.reduce((acc, cluster) => acc + cluster.avgCPC, 0) / ppcSampleClusters.length,
+        clusters: ppcSampleClusters.sort((a, b) => b.revenueScore - a.revenueScore),
+        totalProjectedRevenue: ppcSampleClusters.reduce((acc, cluster) => acc + cluster.projectedRevenue, 0)
+      };
+    }
+  };
+
+  const handleAnalyze = () => {
+    setIsAnalyzing(true);
+    
+    setTimeout(() => {
+      const data = generateKeywordData(businessData.businessType, businessData.seedKeywords, mode);
+      setKeywordData(data);
+      setIsAnalyzing(false);
+      setStep(3);
+    }, 3000);
+  };
+
+  const resetAnalysis = () => {
+    setStep(1);
+    setKeywordData(null);
+    setBusinessData({
+      businessType: '',
+      targetAudience: '',
+      seedKeywords: '',
+      geoFocus: '',
+      monthlyBudget: ''
+    });
+  };
+
+  if (step === 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-6">
+        <div className="max-w-2xl mx-auto">
+          {/* Author Credit */}
+          <div className="absolute top-6 right-6 text-right">
+            <div className="text-white font-medium text-sm mb-2">Prateek Jaiswal</div>
+            <a 
+              href="https://www.linkedin.com/in/prateek-jaiswal-63200b55/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-blue-300 hover:text-blue-200 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+            </a>
+          </div>
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500 rounded-full mb-4">
+              <Search className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-white mb-2">Keyword Research GPT</h1>
+            <p className="text-blue-200 text-lg">Revenue-Focused Keyword Discovery & Analysis</p>
+            
+            {/* Mode and Currency Controls */}
+            <div className="flex justify-center space-x-4 mt-6">
+              <div className="flex bg-white/10 rounded-lg p-1">
+                <button
+                  onClick={() => setMode('ppc')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mode === 'ppc' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-blue-200 hover:text-white'
+                  }`}
+                >
+                  PPC Research
+                </button>
+                <button
+                  onClick={() => setMode('seo')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mode === 'seo' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-blue-200 hover:text-white'
+                  }`}
+                >
+                  SEO Research
+                </button>
+              </div>
+              
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {Object.entries(currencies).map(([code, info]) => (
+                  <option key={code} value={code} className="bg-slate-800 text-white">
+                    {info.symbol} {info.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+            <h2 className="text-2xl font-semibold text-white mb-6">
+              {mode === 'ppc' ? 'PPC Campaign Setup' : 'SEO Strategy Setup'}
+            </h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-blue-100 font-medium mb-2">
+                  <Target className="w-4 h-4 inline mr-2" />
+                  Business Type
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., SaaS, E-commerce, Consulting, etc."
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={businessData.businessType}
+                  onChange={(e) => setBusinessData({...businessData, businessType: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-blue-100 font-medium mb-2">
+                  <Users className="w-4 h-4 inline mr-2" />
+                  Target Audience
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Small business owners, Marketing managers, etc."
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={businessData.targetAudience}
+                  onChange={(e) => setBusinessData({...businessData, targetAudience: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-blue-100 font-medium mb-2">
+                  <Zap className="w-4 h-4 inline mr-2" />
+                  Seed Keywords
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., project management, CRM software, email marketing"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={businessData.seedKeywords}
+                  onChange={(e) => setBusinessData({...businessData, seedKeywords: e.target.value})}
+                />
+                <p className="text-blue-200 text-sm mt-1">Separate multiple keywords with commas</p>
+              </div>
+
+              <div>
+                <label className="block text-blue-100 font-medium mb-2">
+                  <MapPin className="w-4 h-4 inline mr-2" />
+                  Geographic Focus
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., United States, New York, Global"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={businessData.geoFocus}
+                  onChange={(e) => setBusinessData({...businessData, geoFocus: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-blue-100 font-medium mb-2">
+                  <DollarSign className="w-4 h-4 inline mr-2" />
+                  {mode === 'ppc' ? 'Monthly Ad Budget' : 'Monthly SEO Budget'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={`e.g., ${currencies[currency].symbol}5,000`}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={businessData.monthlyBudget}
+                  onChange={(e) => setBusinessData({...businessData, monthlyBudget: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep(2)}
+              disabled={!businessData.businessType || !businessData.seedKeywords}
+              className="w-full mt-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200"
+            >
+              Continue to Analysis
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-6">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+            <h2 className="text-2xl font-semibold text-white mb-6">Review & Confirm</h2>
+            
+            <div className="space-y-4 mb-8">
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Business Type:</span>
+                <span className="text-white font-medium">{businessData.businessType}</span>
+              </div>
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Target Audience:</span>
+                <span className="text-white font-medium">{businessData.targetAudience}</span>
+              </div>
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Seed Keywords:</span>
+                <span className="text-white font-medium">{businessData.seedKeywords}</span>
+              </div>
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Geographic Focus:</span>
+                <span className="text-white font-medium">{businessData.geoFocus}</span>
+              </div>
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Monthly Budget:</span>
+                <span className="text-white font-medium">{businessData.monthlyBudget}</span>
+              </div>
+              <div className="flex justify-between py-3 border-b border-white/10">
+                <span className="text-blue-200">Analysis Mode:</span>
+                <span className="text-white font-medium">{mode === 'ppc' ? 'PPC Research' : 'SEO Research'}</span>
+              </div>
+            </div>
+
+            {isAnalyzing ? (
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mb-4"></div>
+                <p className="text-white font-medium">
+                  {mode === 'ppc' ? 'Analyzing PPC opportunities and generating revenue projections...' : 'Analyzing SEO opportunities and content gaps...'}
+                </p>
+                <p className="text-blue-200 text-sm mt-2">This may take a few moments</p>
+              </div>
+            ) : (
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-lg border border-white/20 transition-all duration-200"
+                >
+                  Back to Edit
+                </button>
+                <button
+                  onClick={handleAnalyze}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200"
+                >
+                  Start Analysis
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 3 && keywordData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">
+              {mode === 'ppc' ? 'PPC Executive Dashboard' : 'SEO Executive Dashboard'}
+            </h1>
+            <p className="text-blue-200 text-lg">
+              {mode === 'ppc' ? 'Revenue-Focused PPC Analysis' : 'Organic Growth Strategy'} for {businessData.businessType}
+            </p>
+            
+            {/* Mode Switch in Dashboard */}
+            <div className="flex justify-center space-x-4 mt-4">
+              <div className="flex bg-white/10 rounded-lg p-1">
+                <button
+                  onClick={() => {
+                    setMode('ppc');
+                    const data = generateKeywordData(businessData.businessType, businessData.seedKeywords, 'ppc');
+                    setKeywordData(data);
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mode === 'ppc' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-blue-200 hover:text-white'
+                  }`}
+                >
+                  PPC View
+                </button>
+                <button
+                  onClick={() => {
+                    setMode('seo');
+                    const data = generateKeywordData(businessData.businessType, businessData.seedKeywords, 'seo');
+                    setKeywordData(data);
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mode === 'seo' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-blue-200 hover:text-white'
+                  }`}
+                >
+                  SEO View
+                </button>
+              </div>
+              
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {Object.entries(currencies).map(([code, info]) => (
+                  <option key={code} value={code} className="bg-slate-800 text-white">
+                    {info.symbol} {info.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+              <div className="flex items-center justify-between mb-2">
+                <BarChart3 className="w-6 h-6 text-blue-400" />
+                <span className="text-2xl font-bold text-white">{keywordData.totalKeywords}</span>
+              </div>
+              <p className="text-blue-200 text-sm">Total Keywords</p>
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+              <div className="flex items-center justify-between mb-2">
+                <TrendingUp className="w-6 h-6 text-green-400" />
+                <span className="text-2xl font-bold text-white">{keywordData.totalVolume.toLocaleString()}</span>
+              </div>
+              <p className="text-blue-200 text-sm">Monthly Searches</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+              <div className="flex items-center justify-between mb-2">
+                {mode === 'ppc' ? (
+                  <DollarSign className="w-6 h-6 text-yellow-400" />
+                ) : (
+                  <BarChart3 className="w-6 h-6 text-orange-400" />
+                )}
+                <span className="text-2xl font-bold text-white">
+                  {mode === 'ppc' 
+                    ? formatCurrency(keywordData.avgCPC)
+                    : Math.round(keywordData.avgDifficulty)
+                  }
+                </span>
+              </div>
+              <p className="text-blue-200 text-sm">
+                {mode === 'ppc' ? 'Avg. CPC' : 'Avg. Difficulty'}
+              </p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+              <div className="flex items-center justify-between mb-2">
+                <TrendingUp className="w-6 h-6 text-purple-400" />
+                <span className="text-2xl font-bold text-white">{formatCurrency(keywordData.totalProjectedRevenue)}</span>
+              </div>
+              <p className="text-blue-200 text-sm">Projected Revenue</p>
+            </div>
+          </div>
+
+          {/* Smart Keyword Clusters */}
+          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20 mb-8">
+            <h2 className="text-2xl font-semibold text-white mb-6">
+              {mode === 'ppc' ? 'High-Value PPC Clusters' : 'SEO Content Opportunities'}
+            </h2>
+            
+            <div className="space-y-6">
+              {keywordData.clusters.map((cluster, index) => (
+                <div key={index} className="bg-white/5 rounded-lg p-6 border border-white/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <h3 className="text-xl font-semibold text-white">{cluster.cluster}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        cluster.intent === 'BOFU' ? 'bg-red-500/20 text-red-300' :
+                        cluster.intent === 'MOFU' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-blue-500/20 text-blue-300'
+                      }`}>
+                        {cluster.intent}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-white">{cluster.revenueScore}</div>
+                      <div className="text-blue-200 text-sm">Revenue Score</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <div className="text-lg font-semibold text-white">{cluster.avgVolume.toLocaleString()}</div>
+                      <div className="text-blue-200 text-sm">Avg. Volume</div>
+                    </div>
+                    
+                    {mode === 'ppc' ? (
+                      <>
+                        <div>
+                          <div className="text-lg font-semibold text-white">{formatCurrency(cluster.avgCPC)}</div>
+                          <div className="text-blue-200 text-sm">Avg. CPC</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-white">{cluster.competition}</div>
+                          <div className="text-blue-200 text-sm">Competition</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <div className="text-lg font-semibold text-white">{cluster.difficulty}/100</div>
+                          <div className="text-blue-200 text-sm">SEO Difficulty</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-white">{cluster.seoMetrics.backlinksNeeded}</div>
+                          <div className="text-blue-200 text-sm">Backlinks Needed</div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div>
+                      <div className="text-lg font-semibold text-green-400">{formatCurrency(cluster.projectedRevenue)}</div>
+                      <div className="text-blue-200 text-sm">Projected Revenue</div>
+                    </div>
+                  </div>
+
+                  {mode === 'seo' && cluster.seoMetrics && (
+                    <div className="space-y-4 mb-4 p-4 bg-white/5 rounded-lg">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <div className="text-sm font-medium text-white">Current Position: #{cluster.seoMetrics.avgPosition}</div>
+                          <div className="text-blue-200 text-xs">Average ranking</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white">Expected CTR: {cluster.seoMetrics.clickRate}%</div>
+                          <div className="text-blue-200 text-xs">Click-through rate</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white">Time to Rank: {cluster.seoMetrics.timeToRank}</div>
+                          <div className="text-blue-200 text-xs">Estimated timeline</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white">Potential: {cluster.seoMetrics.rankingPotential}</div>
+                          <div className="text-blue-200 text-xs">Ranking potential</div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-white/10">
+                        <div>
+                          <div className="text-sm font-medium text-white">Content Effort: {cluster.seoMetrics.contentEffort}</div>
+                          <div className="text-blue-200 text-xs">Content requirements</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white">Link Velocity: {cluster.seoMetrics.linkVelocity}</div>
+                          <div className="text-blue-200 text-xs">Monthly link building</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white">Content Gap: {cluster.seoMetrics.contentGap}</div>
+                          <div className="text-blue-200 text-xs">Market opportunity</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-white/10 pt-4">
+                    <p className="text-blue-200 text-sm mb-2">Top Keywords:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cluster.keywords.slice(0, 6).map((keyword, kidx) => (
+                        <span key={kidx} className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm">
+                          {keyword}
+                        </span>
+                      ))}
+                      {cluster.keywords.length > 6 && (
+                        <span className="text-blue-200 text-sm px-3 py-1">
+                          +{cluster.keywords.length - 6} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={resetAnalysis}
+              className="bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-8 rounded-lg border border-white/20 transition-all duration-200"
+            >
+              New Analysis
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200"
+            >
+              Export Report
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+};
+
+export default KeywordResearchGPT;
